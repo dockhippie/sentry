@@ -1,0 +1,14 @@
+#!/bin/bash
+set -eo pipefail
+
+if [ -f ./setup ]
+then
+  source ./setup
+fi
+
+echo "Launching sentry smtp..."
+su-exec sentry sentry \
+  run \
+  smtp \
+  --noinput \
+  --upgrade

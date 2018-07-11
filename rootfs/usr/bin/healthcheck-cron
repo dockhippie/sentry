@@ -1,0 +1,11 @@
+#!/bin/bash
+set -eo pipefail
+
+CHECK="$(pgrep sentry)"
+
+if [[ "${CHECK}" != "" ]]
+then
+  exit 0
+fi
+
+exit 1

@@ -1,0 +1,27 @@
+#!/bin/bash
+set -eo pipefail
+
+if [[ $# -ne 1 ]]
+then
+  echo "Usage: ${0} server|worker|smtp|cron"
+  exit 1
+fi
+
+case ${1} in
+  server)
+    exec healthcheck-server
+    ;;
+  worker)
+    exec healthcheck-worker
+    ;;
+  smtp)
+    exec healthcheck-smtp
+    ;;
+  cron)
+    exec healthcheck-cron
+    ;;
+  *)
+    echo "Invalid component"
+    exit 2
+    ;;
+esac

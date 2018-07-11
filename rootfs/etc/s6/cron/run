@@ -1,0 +1,13 @@
+#!/bin/bash
+set -eo pipefail
+
+if [ -f ./setup ]
+then
+  source ./setup
+fi
+
+echo "Launching sentry cron..."
+su-exec sentry sentry \
+  run \
+  cron \
+  --autoreload

@@ -1,0 +1,81 @@
+#!/bin/bash
+set -eo pipefail
+
+if [[ ! -d ${SENTRY_FILESTORE_DIR} ]]
+then
+  echo "Creating filestore directory..."
+  mkdir -p ${SENTRY_FILESTORE_DIR}
+fi
+
+if [[ ! -d ${SENTRY_CACHE_DIR} ]]
+then
+  echo "Creating cache directory..."
+  mkdir -p ${SENTRY_CACHE_DIR}
+fi
+
+if [[ ${SENTRY_SKIP_CHOWN} == "true" ]]
+then
+  echo "Skipping data chown..."
+else
+  echo "Fix data permission..."
+  find ${SENTRY_BASE_DIR} \( \! -user sentry -o \! -group sentry \) -print0 | xargs -r -0 chown sentry:sentry
+
+  echo "Fix filestore permission..."
+  find ${SENTRY_FILESTORE_DIR} \( \! -user sentry -o \! -group sentry \) -print0 | xargs -r -0 chown sentry:sentry
+fi
+
+echo "Writing base config..."
+/usr/bin/templater -d \
+  -p sentry \
+  -o ${SENTRY_CONF}/config.yml \
+  /etc/templates/config.tmpl
+
+if [[ $? -ne 0 ]]
+then
+  echo "Writing base failed!"
+  /bin/s6-svscanctl -t /etc/s6
+  exit 1
+fi
+
+echo "Writing sentry config..."
+/usr/bin/templater -d \
+  -p sentry \
+  -o ${SENTRY_CONF}/sentry.conf.py \
+  /etc/templates/sentry.tmpl
+
+if [[ $? -ne 0 ]]
+then
+  echo "Writing sentry failed!"
+  /bin/s6-svscanctl -t /etc/s6
+  exit 1
+fi
+
+echo "Waiting for database..."
+wait-for-it -t ${SENTRY_DB_TEST_TIMEOUT} ${SENTRY_DB_HOST}:${SENTRY_DB_PORT}
+
+if [[ $? -ne 0 && "${SENTRY_DB_TEST_FAIL}" == "true" ]]
+then
+  echo "Database didn't came up in time!"
+  /bin/s6-svscanctl -t /etc/s6
+  exit 1
+fi
+
+echo "Waiting for broker..."
+wait-for-it -t ${SENTRY_BROKER_TEST_TIMEOUT} ${SENTRY_BROKER_HOST}:${SENTRY_BROKER_PORT}
+
+if [[ $? -ne 0 && "${SENTRY_BROKER_TEST_FAIL}" == "true" ]]
+then
+  echo "Broker didn't came up in time!"
+  /bin/s6-svscanctl -t /etc/s6
+  exit 1
+fi
+
+echo "Waiting for redis..."
+wait-for-it -t ${SENTRY_REDIS_TEST_TIMEOUT} ${SENTRY_REDIS_HOST}:${SENTRY_REDIS_PORT}
+
+if [[ $? -ne 0 && "${SENTRY_REDIS_TEST_FAIL}" == "true" ]]
+then
+  echo "Redis didn't came up in time!"
+  /bin/s6-svscanctl -t /etc/s6
+  exit 1
+fi

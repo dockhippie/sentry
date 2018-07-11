@@ -1,0 +1,142 @@
+from sentry.conf.server import *
+from distutils.util import strtobool
+
+import os
+import os.path
+
+CONF_ROOT = os.path.dirname(__file__)
+
+SENTRY_CACHE = 'sentry.cache.redis.RedisCache'
+SENTRY_RATELIMITER = 'sentry.ratelimits.redis.RedisRateLimiter'
+SENTRY_BUFFER = 'sentry.buffer.redis.RedisBuffer'
+SENTRY_QUOTAS = 'sentry.quotas.redis.RedisQuota'
+SENTRY_TSDB = 'sentry.tsdb.redis.RedisTSDB'
+SENTRY_DIGESTS = 'sentry.digests.backends.redis.RedisBackend'
+
+if env('SENTRY_DB_TYPE') == 'postgres':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'sentry.db.postgres',
+            'NAME': env('SENTRY_DB_DATABASE', 'sentry'),
+            'USER': env('SENTRY_DB_USERNAME', 'postgres'),
+            'PASSWORD': env('SENTRY_DB_PASSWORD'),
+            'HOST': env('SENTRY_DB_HOST', 'postgres'),
+            'PORT': env('SENTRY_DB_PORT', '5432'),
+            'AUTOCOMMIT': bool(strtobool(env('SENTRY_DB_AUTOCOMMIT', 'true'))),
+            'ATOMIC_REQUESTS': bool(strtobool(env('SENTRY_DB_ATOMICREQUESTS', 'false'))),
+        }
+    }
+
+if env('SENTRY_CACHE_TYPE', 'filebased') == 'filebased':
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': env('SENTRY_CACHE_DIR', '/var/lib/sentry/cache'),
+        }
+    }
+
+if env('SENTRY_CACHE_TYPE', 'filebased') == 'memcached':
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+            'LOCATION': env('SENTRY_CACHE_HOST', 'memcached:11211'),
+        }
+    }
+
+if env('SENTRY_BROKER_TYPE', 'redis') == 'redis':
+    BROKER_URL = 'redis://' + env('SENTRY_BROKER_PASSWORD', '') + '@' + env('SENTRY_BROKER_HOST', 'redis') + ':' + env('SENTRY_BROKER_PORT', '6379') + '/' + env('SENTRY_BROKER_DB', '0')
+
+if env('SENTRY_BROKER_TYPE', 'redis') == 'rabbitmq':
+    BROKER_URL = 'amqp://' + env('SENTRY_BROKER_USERNAME', '') + ':' + env('SENTRY_BROKER_PASSWORD', '') + '@' + env('SENTRY_BROKER_HOST', 'redis') + ':' + env('SENTRY_BROKER_PORT', '6379') + '/' + env('SENTRY_BROKER_VHOST', '')
+
+if env('SENTRY_FILESTORE_BACKEND', 'filesystem') == 'filesystem':
+    SENTRY_OPTIONS['filestore.backend'] = 'filesystem'
+    SENTRY_OPTIONS['filestore.options'] = {
+        'location': env('SENTRY_FILESTORE_DIR', '/var/lib/sentry/files'),
+    }
+
+if env('SENTRY_FILESTORE_BACKEND', 'filesystem') == 's3':
+    SENTRY_OPTIONS['filestore.backend'] = 's3'
+    SENTRY_OPTIONS['filestore.options'] = {
+        'bucket_name': env('SENTRY_FILESTORE_BUCKET_NAME', 'sentry'),
+    }
+
+if env('SENTRY_FILESTORE_BACKEND', 'filesystem') == 'gcs':
+    SENTRY_OPTIONS['filestore.backend'] = 'gcs'
+    SENTRY_OPTIONS['filestore.options'] = {
+        'access_key': env('SENTRY_FILESTORE_ACCESS_KEY'),
+        'secret_key': env('SENTRY_FILESTORE_SECRET_KEY'),
+        'bucket_name': env('SENTRY_FILESTORE_BUCKET_NAME', 'sentry'),
+    }
+
+if bool(strtobool(env('SENTRY_USE_SSL', 'false'))):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+
+if bool(strtobool(env('SENTRY_GITHUB_AUTH', 'false'))):
+    GITHUB_APP_ID = env('SENTRY_GITHUB_CLIENT')
+    GITHUB_API_SECRET = env('SENTRY_GITHUB_SECRET')
+    GITHUB_EXTENDED_PERMISSIONS = ['repo']
+    GITHUB_REQUIRE_VERIFIED_EMAIL = bool(strtobool(env('SENTRY_GITHUB_VERIFIED_EMAIL', 'true')))
+
+SENTRY_SMTP_HOST = '0.0.0.0'
+
+SENTRY_WEB_HOST = '0.0.0.0'
+SENTRY_WEB_PORT = 9000
+
+SENTRY_WEB_OPTIONS = {
+    'workers': env('SENTRY_WEB_WORKERS', '3')
+}
+
+SENTRY_USE_BIG_INTS = bool(strtobool(env('SENTRY_USE_BIG_INTS', 'true')))
+SENTRY_SINGLE_ORGANIZATION = bool(strtobool(env('SENTRY_SINGLE_ORGANIZATION', 'true')))
+DEBUG = bool(strtobool(env('SENTRY_DEBUG', 'false')))
+FORCE_SCRIPT_NAME = env('SENTRY_FORCE_SCRIPT_NAME', '/')
+SENTRY_PUBLIC = bool(strtobool(env('SENTRY_PUBLIC', 'false')))
+SENTRY_ALLOW_ORIGIN = env('SENTRY_ALLOW_ORIGIN')
+
+SENTRY_OPTIONS['redis.clusters'] = {
+    'default': {
+        'hosts': {
+            0: {
+                'host': env('SENTRY_REDIS_HOST', 'redis'),
+                'password': env('SENTRY_REDIS_PASSWORD'),
+                'port': env('SENTRY_REDIS_PORT', '6379'),
+                'db': env('SENTRY_REDIS_DB', '0')
+            }
+        }
+    }
+}
+
+SENTRY_OPTIONS['system.admin-email'] = env('SENTRY_ADMIN_EMAIL')
+SENTRY_OPTIONS['system.secret-key'] = env('SENTRY_SECRET_KEY')
+SENTRY_OPTIONS['system.url-prefix'] = env('SENTRY_URL_PREFIX')
+
+SENTRY_OPTIONS['mail.from'] = env('SENTRY_MAIL_FROM', 'sentry@localhost')
+SENTRY_OPTIONS['mail.mailgun-api-key'] = env('SENTRY_MAIL_MAILGUN_APIKEY')
+
+if env('SENTRY_MAIL_BACKEND', 'dummy') == 'dummy':
+    SENTRY_OPTIONS['mail.backend'] = 'dummy'
+
+if env('SENTRY_MAIL_BACKEND', 'dummy') == 'smtp':
+    SENTRY_OPTIONS['mail.backend'] = 'smtp'
+    SENTRY_OPTIONS['mail.host'] = env('SENTRY_MAIL_HOST')
+    SENTRY_OPTIONS['mail.port'] = int(env('SENTRY_MAIL_PORT', '25'))
+    SENTRY_OPTIONS['mail.username'] = env('SENTRY_MAIL_USERNAME')
+    SENTRY_OPTIONS['mail.password'] = env('SENTRY_MAIL_PASSWORD')
+    SENTRY_OPTIONS['mail.use-tls'] = bool(strtobool(env('SENTRY_MAIL_USE_TLS', 'false')))
+
+if SENTRY_OPTIONS['mail.mailgun-api-key']:
+    SENTRY_OPTIONS['mail.enable-replies'] = True
+else:
+    SENTRY_OPTIONS['mail.enable-replies'] = bool(strtobool(env('SENTRY_MAIL_ENABLE_REPLIES', 'false')))
+
+if SENTRY_OPTIONS['mail.enable-replies']:
+    SENTRY_OPTIONS['mail.reply-hostname'] = env('SENTRY_MAIL_REPLY_HOSTNAME')
+
+for k in SENTRY_FEATURES.keys():
+    v = env('SENTRY_FEATURES_{}'.format(k.replace(':', '_').replace('-', '_').upper()))
+    if v:
+        SENTRY_FEATURES[k] = bool(strtobool(v))
