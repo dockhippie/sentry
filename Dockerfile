@@ -1,4 +1,4 @@
-FROM webhippie/python:2
+FROM webhippie/python:3
 
 LABEL maintainer="Thomas Boerger <thomas@webhippie.de>" \
   org.label-schema.name="Sentry" \
